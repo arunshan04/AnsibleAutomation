@@ -1,0 +1,31 @@
+---
+- name: Run CIS checks based on lookup file
+  hosts: all
+  gather_facts: yes
+  vars:
+    lookup_file: "./cis_lookup.csv"
+
+  tasks:
+
+    - name: Read lookup CSV
+      read_csv:
+        path: "{{ lookup_file }}"
+      register: cis_checks
+
+    - name: Include validation tasks
+      include_tasks: validate_tasks.yml
+      vars:
+        current_item: "{{ item }}"
+      loop: "{{ cis_checks.list }}"
+      loop_control:
+        label: "{{ item.id }}"
+      when: item.action == 'validate'
+
+    - name: Include fix tasks
+      include_tasks: fix_tasks.yml
+      vars:
+        current_item: "{{ item }}"
+      loop: "{{ cis_checks.list }}"
+      loop_control:
+        label: "{{ item.id }}"
+      when: item.action == 'fix'

@@ -1,0 +1,22 @@
+---
+- name: Fix for ID {{ current_item.id }} - {{ current_item.description }}
+  block:
+
+    - name: Set SELinux to enforcing (ID 1)
+      command: setenforce 1
+      when: current_item.id == '1'
+
+    - name: Remount /tmp with noexec (ID 2)
+      mount:
+        path: /tmp
+        opts: "defaults,noexec"
+        state: mounted
+        fstype: tmpfs
+      when: current_item.id == '2'
+
+    - name: Ensure minimum password length is set (ID 3)
+      lineinfile:
+        path: /etc/security/pwquality.conf
+        regexp: '^minlen'
+        line: 'minlen = 14'
+      when: current_item.id == '3'

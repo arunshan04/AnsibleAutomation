@@ -1,0 +1,44 @@
+---
+- name: Validation for ID {{ current_item.id }} - {{ current_item.description }}
+  - block:
+
+      - name: Check SELinux mode (ID 1)
+        command: getenforce
+        register: selinux_status
+        changed_when: false
+
+      - name: Print SELinux mode
+        debug:
+          msg: "SELinux is in {{ selinux_status.stdout }} mode"
+
+    when: current_item.id == '1'
+
+
+  - block:
+
+      - name: Check if /tmp is mounted with noexec (ID 2)
+        shell: mount | grep '/tmp' | grep -q 'noexec'
+        register: tmp_mount
+        ignore_errors: true
+        changed_when: false
+
+      - name: Print /tmp noexec status
+        debug:
+          msg: "/tmp has noexec: {{ tmp_mount.rc == 0 }}"
+
+    when: current_item.id == '2'
+
+
+  - block:
+
+      - name: Validate minlen in pwquality.conf (ID 3)
+        shell: grep '^minlen' /etc/security/pwquality.conf | awk '{print $3}'
+        register: minlen_check
+        changed_when: false
+        ignore_errors: true
+
+      - name: Print minlen value
+        debug:
+          msg: "Minlen is set to {{ minlen_check.stdout | default('not set') }}"
+
+    when: current_item.id == '3'
