@@ -19,7 +19,7 @@
     - name: Copy lookup file to remote (for optional use)
       copy:
         src: "{{ lookup_file }}"
-        dest: /tmp/cis_lookup_fix.csv
+        dest: ./cis_lookup_fix.csv
 
     - name: Include validation tasks
       include_tasks: validate_tasks.yml

@@ -9,9 +9,10 @@
 
   tasks:
 
-    - name: Read lookup CSV using csvfile lookup
-      set_fact:
-        cis_checks: "{{ lookup('csvfile', lookup_file, delimiter=',', columns=['id', 'description', 'action']) }}"
+    - name: Read lookup CSV (locally)
+      read_csv:
+        path: "{{ lookup_file }}"
+      register: cis_checks
       delegate_to: localhost
       run_once: true
 
