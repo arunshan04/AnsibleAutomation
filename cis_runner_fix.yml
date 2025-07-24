@@ -1,0 +1,48 @@
+---
+- name: Run CIS checks based on lookup file
+  hosts: all
+  gather_facts: yes
+  vars:
+    passed_ids: []
+    failed_ids: []
+    lookup_file: "./cis_lookup_fix.csv"
+
+  tasks:
+
+    - name: Read lookup CSV (locally)
+      read_csv:
+        path: "{{ lookup_file }}"
+      register: cis_checks
+      delegate_to: localhost
+      run_once: true
+
+    - name: Copy lookup file to remote (for optional use)
+      copy:
+        src: "{{ lookup_file }}"
+        dest: /tmp/cis_lookup_fix.csv
+
+    - name: Include validation tasks
+      include_tasks: validate_tasks.yml
+      vars:
+        current_item: "{{ item }}"
+      loop: "{{ cis_checks.list }}"
+      loop_control:
+        label: "{{ item.id }} ({{ item.description }})"
+      when: item.action == 'validate'
+
+    - name: Include fix tasks
+      include_tasks: fix_tasks.yml
+      vars:
+        current_item: "{{ item }}"
+      loop: "{{ cis_checks.list }}"
+      loop_control:
+        label: "{{ item.id }} ({{ item.description }})"
+      when: item.action == 'fix'
+
+    - name: Show Passed Fix for each host
+      debug:
+        msg: "✅ {{ inventory_hostname }} Passed: {{ passed_ids | default([]) }}"
+
+    - name: Show Failed Fix for each host
+      debug:
+        msg: "❌ {{ inventory_hostname }} Failed: {{ failed_ids | default([]) }}"

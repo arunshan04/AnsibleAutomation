@@ -1,22 +1,52 @@
----
-- name: Fix for ID {{ current_item.id }} - {{ current_item.description }}
-  block:
-
+# --- Fix Task for SELinux (ID 1) ---
+- block:
     - name: Set SELinux to enforcing (ID 1)
       command: setenforce 1
-      when: current_item.id == '1'
 
+    - name: Add ID 1 to passed fixes
+      set_fact:
+        passed_ids: "{{ passed_ids + [ current_item.id ] }}"
+  rescue:
+    - name: Add ID 1 to failed fixes
+      set_fact:
+        failed_ids: "{{ failed_ids + [ current_item.id ] }}"
+  when: current_item.id == '1'
+
+
+# --- Fix Task for /tmp with noexec (ID 2) ---
+- block:
     - name: Remount /tmp with noexec (ID 2)
       mount:
         path: /tmp
         opts: "defaults,noexec"
         state: mounted
         fstype: tmpfs
-      when: current_item.id == '2'
 
+    - name: Add ID 2 to passed fixes
+      set_fact:
+        passed_ids: "{{ passed_ids + [ current_item.id ] }}"
+  rescue:
+    - name: Add ID 2 to failed fixes
+      set_fact:
+        failed_ids: "{{ failed_ids + [ current_item.id ] }}"
+  when: current_item.id == '2'
+
+
+# --- Fix Task for pwquality.conf minlen (ID 3) ---
+- block:
     - name: Ensure minimum password length is set (ID 3)
       lineinfile:
         path: /etc/security/pwquality.conf
         regexp: '^minlen'
         line: 'minlen = 14'
-      when: current_item.id == '3'
+        create: yes
+        backup: yes
+
+    - name: Add ID 3 to passed fixes
+      set_fact:
+        passed_ids: "{{ passed_ids + [ current_item.id ] }}"
+  rescue:
+    - name: Add ID 3 to failed fixes
+      set_fact:
+        failed_ids: "{{ failed_ids + [ current_item.id ] }}"
+  when: current_item.id == '3'
