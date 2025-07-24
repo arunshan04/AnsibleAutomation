@@ -10,7 +10,7 @@
   tasks:
 
     - name: Read lookup CSV (locally)
-      read_csv:
+      community.general.read_csv::
         path: "{{ lookup_file }}"
       register: cis_checks
       delegate_to: localhost
