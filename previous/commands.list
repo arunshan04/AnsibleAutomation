@@ -1,0 +1,16 @@
+  871  ansible -i inventory.ini hostzero -m ping
+  872  ansible-playbook -i inventory.ini filesystem_validation.yml --check
+  873  ansible-playbook -i inventory.ini filesystem_validation.yml --check
+  874  ansible-playbook -i inventory.ini filesystem_validation.yml --check --debug
+  875  ansible-playbook -i inventory.ini filesystem_validation.yml --check
+  876  ansible-playbook -i inventory.ini filesystem_validation.yml 
+  877  git add *
+  878  git commit -m 'Addition Filesystme Validataion'
+  879  git push
+  880  ansible-playbook -i inventory.ini filesystem_validation.yml 
+  881  ls -lrt inventory.ini*
+  882  file inventory.ini*
+  883  ansible-playbook -i inventory.ini filesystem_validation.yml 
+  884  ansible -i inventory.ini hostzero -m ping
+  885  history
+  886  ansible-inventory -i inventory.ini --list

@@ -1,0 +1,71 @@
+---
+# ===========================
+# REMEDIATION SCRIPT (Generic)
+# ===========================
+- name: CIS Remediation (Generic)
+  hosts: all
+  become: true
+  vars:
+    cis_csv_path: "./cis_controls.csv"
+    compliance_input: "/tmp/cis_compliance_check_results.json"
+    blacklist_file: "/etc/modprobe.d/CIS_blacklist.conf"
+    passed_ids: []
+    failed_ids: []
+
+  tasks:
+    - name: Set blacklist file path if not already defined
+      set_fact:
+        blacklist_file: "/etc/modprobe.d/CIS_blacklist.conf"
+      when: blacklist_file is not defined
+
+    - name: Check if blacklist file exists
+      ansible.builtin.stat:
+        path: "{{ blacklist_file }}"
+      register: blacklist_file_stat
+
+    - name: Backup existing blacklist file (with timestamp) if it exists
+      ansible.builtin.copy:
+        src: "{{ blacklist_file }}"
+        dest: "{{ blacklist_file }}.{{ lookup('pipe', 'date +%Y%m%d%H%M%S') }}.bak"
+        remote_src: yes
+        mode: '0644'
+      when: blacklist_file_stat.stat.exists
+      ignore_errors: true
+
+    - name: Copy CIS Controls CSV to remote node
+      ansible.builtin.copy:
+        src: "{{ cis_csv_path }}"
+        dest: "/tmp/cis_controls.csv"
+
+    - name: Load compliance results
+      ansible.builtin.slurp:
+        src: "{{ compliance_input }}"
+      register: raw_json
+
+    - name: Decode compliance JSON
+      set_fact:
+        compliance_data: "{{ raw_json.content | b64decode | from_json }}"
+
+    - name: Load CIS Controls
+      community.general.read_csv:
+        path: "/tmp/cis_controls.csv"
+      register: cis_controls
+
+    - name: Debug loaded CIS controls
+      debug:
+        msg: "Loaded CIS controls: {{ cis_controls.list }}"
+
+    - name: Remediate failed kernel modules
+      include_tasks: tasks/fix_kernel_module.yml
+      loop: "{{ cis_controls.list }}"
+      when: item.type == 'checkKernalModule' and (compliance_data[item.name].result is defined and compliance_data[item.name].result == 'FAIL')
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Show Passed Fixes
+      debug:
+        msg: "✅ {{ inventory_hostname }} Remediation Passed: {{ passed_ids | default([]) }}"
+
+    - name: Show Failed Fixes
+      debug:
+        msg: "❌ {{ inventory_hostname }} Remediation Failed: {{ failed_ids | default([]) }}"

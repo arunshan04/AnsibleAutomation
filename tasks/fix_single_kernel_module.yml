@@ -1,0 +1,29 @@
+- name: Unload {{ module }} if loaded
+  ansible.builtin.command: "modprobe -r {{ module }}"
+  register: unload_result
+  failed_when: false
+  changed_when: unload_result.rc == 0
+
+- name: Blacklist {{ module }} via install override
+  ansible.builtin.lineinfile:
+    path: "{{ blacklist_file }}"
+    regexp: "^install[[:space:]]+{{ module }}[[:space:]]+"
+    line: "install {{ module }} /bin/true"
+    create: true
+    state: present
+    mode: '0644'
+  register: override_result
+
+- name: Ensure blacklist for {{ module }}
+  ansible.builtin.lineinfile:
+    path: "{{ blacklist_file }}"
+    regexp: "^blacklist[[:space:]]+{{ module }}"
+    line: "blacklist {{ module }}"
+    create: true
+    state: present
+    mode: '0644'
+  register: blacklist_result
+
+- name: Set failure if remediation for {{ module }} fails
+  set_fact:
+    module_failed: "{{ module_failed or (unload_result is failed or override_result is failed or blacklist_result is failed) }}"

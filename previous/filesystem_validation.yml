@@ -1,0 +1,44 @@
+---
+- name: Validate Filesystem Compliance - RHEL 9
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    required_mounts:
+      - mount: /tmp
+        options: [nodev, nosuid, noexec]
+      - mount: /var
+        options: [nodev]
+      - mount: /home
+        options: [nodev]
+      - mount: /dev/shm
+        options: [nodev, nosuid, noexec]
+
+  tasks:
+
+    - name: Gather mount output
+      command: mount
+      register: mount_output
+
+    - name: Validate each required mount
+      vars:
+        matched_mount: "{{ mount_output.stdout_lines | select('search', item.mount ~ ' ') | list | first | default('') }}"
+        options_string: >-
+          {% if '(' in matched_mount and ')' in matched_mount %}
+            {{ matched_mount.split('(')[1].split(')')[0] }}
+          {% else %}
+            ''
+          {% endif %}
+        found_opts: "{{ options_string.split(',') }}"
+        missing_opts: "{{ item.options | difference(found_opts) }}"
+      debug:
+        msg: >-
+          {% if matched_mount == '' %}
+            🔴 {{ item.mount }} not mounted!
+          {% elif missing_opts | length == 0 %}
+            ✅ {{ item.mount }} has all required options.
+          {% else %}
+            ❌ {{ item.mount }} is missing options: {{ missing_opts }}
+          {% endif %}
+      loop: "{{ required_mounts }}"

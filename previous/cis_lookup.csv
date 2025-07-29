@@ -1,0 +1,4 @@
+id,description,action
+1,Ensure SELinux is enforcing,validate
+2,Ensure /tmp is mounted with noexec,validate
+3,Ensure password minimum length is set,validate

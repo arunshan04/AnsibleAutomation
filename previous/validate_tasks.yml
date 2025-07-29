@@ -1,0 +1,64 @@
+- block:
+    - name: Check SELinux mode (ID 1)
+      command: getenforce
+      register: selinux_status
+      changed_when: false
+
+    - name: Print SELinux mode
+      debug:
+        msg: "SELinux is in {{ selinux_status.stdout }} mode"
+
+    - name: Add ID 1 to passed list
+      set_fact:
+        passed_ids: "{{ passed_ids + [ current_item.id ] }}"
+  rescue:
+    - name: Add ID 1 to failed list
+      set_fact:
+        failed_ids: "{{ failed_ids + [ current_item.id ] }}"
+  when: current_item.id == '1'
+
+
+- block:
+    - name: Check if /tmp is mounted with noexec (ID 2)
+      shell: mount | grep '/tmp' | grep -q 'noexec'
+      register: tmp_mount
+      changed_when: false
+      ignore_errors: false
+
+    - name: Print /tmp noexec status
+      debug:
+        msg: "/tmp has noexec: {{ tmp_mount.rc == 0 }}"
+
+    - name: Add ID 2 to passed list
+      set_fact:
+        passed_ids: "{{ passed_ids + [ current_item.id ] }}"
+  rescue:
+    - name: Add ID 2 to failed list
+      set_fact:
+        failed_ids: "{{ failed_ids + [ current_item.id ] }}"
+  when: current_item.id == '2'
+
+
+- block:
+    - name: Validate minlen in pwquality.conf (ID 3)
+      shell: "grep '^minlen' /etc/security/pwquality.conf | awk '{print $3}'"
+      register: minlen_check
+      changed_when: false
+      failed_when:
+        - minlen_check.stdout is not defined or minlen_check.stdout | trim == ""
+        - minlen_check.stdout | int < 14
+
+    - name: Print minlen value
+      debug:
+        msg: "Minlen is set to {{ minlen_check.stdout }}"
+
+    - name: Add ID 3 to passed list
+      set_fact:
+        passed_ids: "{{ passed_ids + [ current_item.id ] }}"
+
+  rescue:
+    - name: Add ID 3 to failed list
+      set_fact:
+        failed_ids: "{{ failed_ids + [ current_item.id ] }}"
+
+  when: current_item.id == '3'

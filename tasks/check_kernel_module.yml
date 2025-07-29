@@ -1,0 +1,30 @@
+- name: Split kernel modules for {{ item.name }}
+  set_fact:
+    module_list: "{{ item.target.split(',') | map('trim') | list }}"
+    module_failed: false
+  when: item.type == "checkKernalModule"
+
+- name: Include compliance checks for each kernel module under {{ item.name }}
+  include_tasks:
+    file: check_single_kernel_module.yml
+  loop: "{{ module_list }}"
+  loop_control:
+    loop_var: module
+    label: "{{ module }}"
+  when: item.type == "checkKernalModule"
+
+- name: Record compliance result for {{ item.name }}
+  set_fact:
+    cis_results: >-
+      {{
+        cis_results | combine({
+          item.name: {
+            'result': 'FAIL' if module_failed else 'PASS',
+            'cis_subsection': item.cis_subsection,
+            'severity': item.severity
+          }
+        })
+      }}
+    passed_ids: "{{ passed_ids + [item.cis_subsection] if not module_failed else passed_ids }}"
+    failed_ids: "{{ failed_ids + [item.cis_subsection] if module_failed else failed_ids }}"
+  when: item.type == "checkKernalModule"

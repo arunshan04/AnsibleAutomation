@@ -1,0 +1,47 @@
+---
+# ===========================
+# COMPLIANCE CHECK SCRIPT (Generic)
+# ===========================
+- name: CIS Compliance Check (Generic)
+  hosts: all
+  gather_facts: yes
+  become: true
+  vars:
+    cis_controls: "{{ playbook_dir }}/cis_controls.csv"
+    compliance_output: "/tmp/cis_compliance_check_results.json"
+    passed_ids: []
+    failed_ids: []
+
+  tasks:
+    - name: Copy lookup file to remote (optional)
+      copy:
+        src: "{{ cis_controls }}"
+        dest: "/tmp/cis_controls.csv"
+
+    - name: Load CIS Controls from remote file
+      read_csv:
+        path: "/tmp/cis_controls.csv"
+      register: cis_csv
+
+    - name: Initialize compliance result store
+      set_fact:
+        cis_results: {}
+
+    - name: Run kernel module compliance checks
+      include_tasks: tasks/check_kernel_module.yml
+      loop: "{{ cis_csv.list }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Save compliance results
+      copy:
+        dest: "{{ compliance_output }}"
+        content: "{{ cis_results | to_nice_json }}"
+
+    - name: Show Passed Fix for each host
+      debug:
+        msg: "✅ {{ inventory_hostname }} Passed: {{ passed_ids | default([]) }}"
+
+    - name: Show Failed Fix for each host
+      debug:
+        msg: "❌ {{ inventory_hostname }} Failed: {{ failed_ids | default([]) }}"

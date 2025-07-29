@@ -1,0 +1,15 @@
+- name: Check if kernel module {{ module }} is disabled
+  ansible.builtin.shell: "modprobe -n -v {{ module }}"
+  register: modprobe_check
+  changed_when: false
+  failed_when: false
+
+- name: Check if {{ module }} is blacklisted
+  ansible.builtin.shell: "grep -E '^[[:space:]]*blacklist[[:space:]]+{{ module }}([[:space:]]+.*)?$' /etc/modprobe.d/*.conf"
+  register: blacklist_check
+  changed_when: false
+  failed_when: false
+
+- name: Set failure if {{ module }} is neither disabled nor blacklisted
+  set_fact:
+    module_failed: "{{ module_failed or (('not found' not in modprobe_check.stderr) and ('install /bin/true' not in modprobe_check.stdout) and ('install /bin/false' not in modprobe_check.stdout) and ('blacklist ' ~ module not in blacklist_check.stdout)) }}"
