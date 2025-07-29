@@ -1,0 +1,51 @@
+- name: Check file system partition configuration
+  block:
+    - name: Check if {{ item.target }} is a separate partition
+      ansible.builtin.command: "findmnt -k {{ item.target }}"
+      register: findmnt_result
+      changed_when: false
+      failed_when: false
+
+    - name: Check {{ item.target }} mount options
+      ansible.builtin.command: "findmnt -n -o OPTIONS {{ item.target }}"
+      register: mount_options_result
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+
+    - name: Set compliance result for {{ item.name }}
+      set_fact:
+        cis_results: >-
+          {{
+            cis_results | combine({
+              item.name: {
+                'result': 'PASS' if (
+                  findmnt_result.rc == 0 and
+                  findmnt_result.stdout | regex_search('.*(/dev/.*)') and
+                  (item.required_options | default('') | split(',') | reject('equalto', '') | list | length == 0 or
+                   (item.required_options | default('') | split(',') | reject('equalto', '') | list | difference(
+                     mount_options_result.stdout | split(',') | map('trim') | list
+                   ) | length == 0))
+                ) else 'FAIL',
+                'cis_subsection': item.cis_subsection,
+                'severity': item.severity
+              }
+            })
+          }}
+        passed_ids: "{{ passed_ids + [item.cis_subsection] if (
+          findmnt_result.rc == 0 and
+          findmnt_result.stdout | regex_search('.*(/dev/.*)') and
+          (item.required_options | default('') | split(',') | reject('equalto', '') | list | length == 0 or
+           (item.required_options | default('') | split(',') | reject('equalto', '') | list | difference(
+             mount_options_result.stdout | split(',') | map('trim') | list
+           ) | length == 0))
+        ) else passed_ids }}"
+        failed_ids: "{{ failed_ids + [item.cis_subsection] if not (
+          findmnt_result.rc == 0 and
+          findmnt_result.stdout | regex_search('.*(/dev/.*)') and
+          (item.required_options | default('') | split(',') | reject('equalto', '') | list | length == 0 or
+           (item.required_options | default('') | split(',') | reject('equalto', '') | list | difference(
+             mount_options_result.stdout | split(',') | map('trim') | list
+           ) | length == 0))
+        ) else failed_ids }}"
+      when: item.type == "checkFsPartition"

@@ -1,0 +1,77 @@
+- name: Remediate file system partition configuration
+  block:
+
+    - name: Check if {{ item.target }} is a separate partition
+      ansible.builtin.command: "findmnt -k {{ item.target }}"
+      register: findmnt_result
+      changed_when: false
+      failed_when: false
+
+    - name: Get current /etc/fstab entry for {{ item.target }}
+      ansible.builtin.command: "grep -E '^[^#].*\\s+{{ item.target }}\\s+' /etc/fstab"
+      register: fstab_entry
+      changed_when: false
+      failed_when: false
+
+    - name: Set remediation failure if {{ item.target }} is not a separate partition
+      set_fact:
+        fs_failed: "{{ not (findmnt_result.rc == 0 and findmnt_result.stdout is search('(UUID=|/dev/)')) }}"
+      when: item.type == "checkFsPartition"
+
+    - name: Warn if {{ item.target }} is not a separate partition
+      debug:
+        msg: "WARNING: {{ item.target }} is not a separate partition. Manual intervention required to create a dedicated partition."
+      when: item.type == "checkFsPartition" and fs_failed
+
+    - name: Extract device and fstype from mount output or fallback to fstab
+      set_fact:
+        mount_device: >-
+          {{
+            (findmnt_result.stdout | regex_search('on (UUID=[^ ]+|/dev/[^ ]+)', multiline=True))
+            or (fstab_entry.stdout | regex_search('UUID=[^\\s]+', multiline=True))
+            or (fstab_entry.stdout | regex_search('/dev/[^ ]+', multiline=True))
+            or ''
+          }}
+        mount_fstype: >-
+          {{
+            (findmnt_result.stdout | regex_search('type ([^ )]+)', multiline=True))
+            or 'xfs'
+          }}
+      when: item.type == "checkFsPartition" and not fs_failed
+
+    - name: Ensure /etc/fstab entry for {{ item.target }} with correct mount options
+      ansible.builtin.lineinfile:
+        path: "/etc/fstab"
+        regexp: "^[^#].*\\s+{{ item.target }}\\s+"
+        line: "{{ mount_device }} {{ item.target }} {{ mount_fstype }} defaults{{ ',' + item.required_options if item.required_options is defined and item.required_options | length > 0 else '' }} 0 0"
+        state: present
+        backup: true
+      register: fstab_result
+      when:
+        - item.type == "checkFsPartition"
+        - not fs_failed
+        - mount_device is defined
+        - mount_device | length > 0
+
+    - name: Check if {{ item.target }} is mounted before remount
+      ansible.builtin.command: "mountpoint -q {{ item.target }}"
+      register: is_mounted
+      changed_when: false
+      failed_when: false
+      when: item.type == "checkFsPartition" and not fs_failed
+
+    - name: Remount {{ item.target }} with correct options
+      ansible.builtin.command: "mount -o remount{{ ',' + item.required_options if item.required_options is defined else '' }} {{ item.target }}"
+      register: remount_result
+      changed_when: remount_result.rc == 0
+      failed_when: remount_result.rc != 0
+      when:
+        - item.type == "checkFsPartition"
+        - not fs_failed
+        - is_mounted.rc == 0
+
+    - name: Record remediation result for {{ item.name }}
+      set_fact:
+        passed_ids: "{{ passed_ids + [item.cis_subsection] if not (fs_failed or fstab_result is failed or remount_result is failed) else passed_ids }}"
+        failed_ids: "{{ failed_ids + [item.cis_subsection] if (fs_failed or fstab_result is failed or remount_result is failed) else failed_ids }}"
+      when: item.type == "checkFsPartition"

@@ -14,12 +14,12 @@
 
   tasks:
     - name: Copy lookup file to remote (optional)
-      copy:
+      ansible.builtin.copy:
         src: "{{ cis_controls }}"
         dest: "/tmp/cis_controls.csv"
 
     - name: Load CIS Controls from remote file
-      read_csv:
+      community.general.read_csv:
         path: "/tmp/cis_controls.csv"
       register: cis_csv
 
@@ -30,11 +30,19 @@
     - name: Run kernel module compliance checks
       include_tasks: tasks/check_kernel_module.yml
       loop: "{{ cis_csv.list }}"
+      when: item.type == 'checkKernalModule'
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Run file system partition compliance checks
+      include_tasks: tasks/check_fs_partition.yml
+      loop: "{{ cis_csv.list }}"
+      when: item.type == 'checkFsPartition'
       loop_control:
         label: "{{ item.name }}"
 
     - name: Save compliance results
-      copy:
+      ansible.builtin.copy:
         dest: "{{ compliance_output }}"
         content: "{{ cis_results | to_nice_json }}"
 

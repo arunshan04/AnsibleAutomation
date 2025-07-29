@@ -62,6 +62,13 @@
       loop_control:
         label: "{{ item.name }}"
 
+    - name: Remediate failed file system partitions
+      include_tasks: tasks/fix_fs_partition.yml
+      loop: "{{ cis_controls.list }}"
+      when: item.type == 'checkFsPartition' and (compliance_data[item.name].result is defined and compliance_data[item.name].result == 'FAIL')
+      loop_control:
+        label: "{{ item.name }}"
+
     - name: Show Passed Fixes
       debug:
         msg: "✅ {{ inventory_hostname }} Remediation Passed: {{ passed_ids | default([]) }}"
