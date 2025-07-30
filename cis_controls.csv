@@ -8,9 +8,10 @@ cis_subsection,severity,type,name,target,required_options
 1.1.1.7,high,checkKernalModule,Ensure udf kernel module is not available,udf
 1.1.1.8,high,checkKernalModule,Ensure usb-storage kernel module is not available,usb_storage
 1.1.1.9,manual,checkKernalModule,Ensure unused filesystems kernel modules are not available,"cramfs,freevxfs,jffs2,hfs,hfsplus,squashfs"
-1.1.2.1,high,checkFsPartition,Ensure /tmp is configured,/tmp,nodev,nosuid,noexec
-1.1.2.2,high,checkFsPartition,Ensure /var is configured,/var,nodev,nosuid
-1.1.2.3,high,checkFsPartition,Ensure /var/tmp is configured,/var/tmp,nodev,nosuid,noexec
-1.1.2.4,high,checkFsPartition,Ensure /var/log is configured,/var/log,
-1.1.2.5,high,checkFsPartition,Ensure /var/log/audit is configured,/var/log/audit,
-1.1.2.6,high,checkFsPartition,Ensure /home is configured,/home,nodev,nosuid
+1.1.2.1,high,checkFsPartition,Ensure /tmp is configured,/tmp,"nodev,nosuid,noexec"
+1.1.2.2,high,checkFsPartition,Ensure /dev/shm is configured,/var,"nodev,nosuid,noexec"
+1.1.2.3,high,checkFsPartition,Ensure /home is configured,/home,"nodev,nosuid"
+1.1.2.4,high,checkFsPartition,Ensure /var is configured,/var,"nodev,nosuid"
+1.1.2.5,high,checkFsPartition,Ensure /var/tmp is configured,/var/tmp,"nodev,nosuid,noexec"
+1.1.2.6,high,checkFsPartition,Ensure /var/log is configured,/var/log,"nodev,nosuid,noexec"
+1.1.2.7,high,checkFsPartition,Ensure /var/log/audit is configured,/var/log/audit,"nodev,nosuid,noexec"

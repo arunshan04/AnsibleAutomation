@@ -13,39 +13,28 @@
       failed_when: false
       ignore_errors: true
 
-    - name: Set compliance result for {{ item.name }}
+    - name: Set compliance status for {{ item.name }}
+      set_fact:
+        current_result: >-
+          {{
+            'PASS' if (
+              findmnt_result.rc == 0 and
+              (item.required_options is not defined or
+               item.required_options.split(',') | difference(mount_options_result.stdout.split(',') | default([])) | length == 0)
+            ) else 'FAIL'
+          }}
+
+    - name: Save compliance result for {{ item.name }}
       set_fact:
         cis_results: >-
           {{
             cis_results | combine({
               item.name: {
-                'result': 'PASS' if (
-                  findmnt_result.rc == 0 and
-                  findmnt_result.stdout | regex_search('.*(/dev/.*)') and
-                  (item.required_options | default('') | split(',') | reject('equalto', '') | list | length == 0 or
-                   (item.required_options | default('') | split(',') | reject('equalto', '') | list | difference(
-                     mount_options_result.stdout | split(',') | map('trim') | list
-                   ) | length == 0))
-                ) else 'FAIL',
+                'result': current_result,
                 'cis_subsection': item.cis_subsection,
                 'severity': item.severity
               }
             })
           }}
-        passed_ids: "{{ passed_ids + [item.cis_subsection] if (
-          findmnt_result.rc == 0 and
-          findmnt_result.stdout | regex_search('.*(/dev/.*)') and
-          (item.required_options | default('') | split(',') | reject('equalto', '') | list | length == 0 or
-           (item.required_options | default('') | split(',') | reject('equalto', '') | list | difference(
-             mount_options_result.stdout | split(',') | map('trim') | list
-           ) | length == 0))
-        ) else passed_ids }}"
-        failed_ids: "{{ failed_ids + [item.cis_subsection] if not (
-          findmnt_result.rc == 0 and
-          findmnt_result.stdout | regex_search('.*(/dev/.*)') and
-          (item.required_options | default('') | split(',') | reject('equalto', '') | list | length == 0 or
-           (item.required_options | default('') | split(',') | reject('equalto', '') | list | difference(
-             mount_options_result.stdout | split(',') | map('trim') | list
-           ) | length == 0))
-        ) else failed_ids }}"
-      when: item.type == "checkFsPartition"
+        passed_ids: "{{ passed_ids + [item.cis_subsection] if current_result == 'PASS' else passed_ids }}"
+        failed_ids: "{{ failed_ids + [item.cis_subsection] if current_result == 'FAIL' else failed_ids }}"
