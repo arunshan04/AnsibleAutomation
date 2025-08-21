@@ -3,6 +3,8 @@
   register: unload_result
   failed_when: false
   changed_when: unload_result.rc == 0
+  tags: 
+    - checkKernalModule
 
 - name: Blacklist {{ module }} via install override
   ansible.builtin.lineinfile:
@@ -13,6 +15,8 @@
     state: present
     mode: '0644'
   register: override_result
+  tags: 
+    - checkKernalModule
 
 - name: Ensure blacklist for {{ module }}
   ansible.builtin.lineinfile:
@@ -23,7 +27,11 @@
     state: present
     mode: '0644'
   register: blacklist_result
+  tags: 
+    - checkKernalModule
 
 - name: Set failure if remediation for {{ module }} fails
   set_fact:
     module_failed: "{{ module_failed or (unload_result is failed or override_result is failed or blacklist_result is failed) }}"
+  tags: 
+    - checkKernalModule

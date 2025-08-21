@@ -71,3 +71,5 @@
       set_fact:
         passed_ids: "{{ passed_ids + [item.cis_subsection] if not (fs_failed or fstab_result is failed or remount_result is failed) else passed_ids }}"
         failed_ids: "{{ failed_ids + [item.cis_subsection] if (fs_failed or fstab_result is failed or remount_result is failed) else failed_ids }}"
+  tags: 
+    - checkFsPartition

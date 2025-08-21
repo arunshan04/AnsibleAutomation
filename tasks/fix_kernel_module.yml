@@ -3,11 +3,15 @@
     module_list: "{{ item.target.split(',') | map('trim') | list }}"
     module_failed: false
   when: item.type == "checkKernalModule"
+  tags: 
+    - checkKernalModule
 
 - name: Debug compliance result for {{ item.name }}
   debug:
     msg: "Compliance result for {{ item.name }} ({{ item.cis_subsection }}): {{ compliance_data[item.name] | default('Not found in compliance_data') }}"
   when: item.type == "checkKernalModule"
+  tags: 
+    - checkKernalModule
 
 - name: Include remediation tasks for each kernel module under {{ item.name }}
   include_tasks:
@@ -17,9 +21,13 @@
     loop_var: module
     label: "{{ module }}"
   when: item.type == "checkKernalModule" and compliance_data[item.name].result == "FAIL"
+  tags: 
+    - checkKernalModule
 
 - name: Record remediation result for {{ item.name }}
   set_fact:
     passed_ids: "{{ passed_ids + [item.cis_subsection] if not module_failed else passed_ids }}"
     failed_ids: "{{ failed_ids + [item.cis_subsection] if module_failed else failed_ids }}"
   when: item.type == "checkKernalModule" and compliance_data[item.name].result == "FAIL"
+  tags: 
+    - checkKernalModule

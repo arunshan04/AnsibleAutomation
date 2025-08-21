@@ -3,13 +3,19 @@
   register: modprobe_check
   changed_when: false
   failed_when: false
+  tags: 
+    - checkKernalModule
 
 - name: Check if {{ module }} is blacklisted
   ansible.builtin.shell: "grep -E '^[[:space:]]*blacklist[[:space:]]+{{ module }}([[:space:]]+.*)?$' /etc/modprobe.d/*.conf"
   register: blacklist_check
   changed_when: false
   failed_when: false
+  tags: 
+    - checkKernalModule
 
 - name: Set failure if {{ module }} is neither disabled nor blacklisted
   set_fact:
     module_failed: "{{ module_failed or (('not found' not in modprobe_check.stderr) and ('install /bin/true' not in modprobe_check.stdout) and ('install /bin/false' not in modprobe_check.stdout) and ('blacklist ' ~ module not in blacklist_check.stdout)) }}"
+  tags: 
+    - checkKernalModule
