@@ -1,8 +1,0 @@
-- name: Test Ansible in VS Code
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Print Hello
-      ansible.builtin.debug:
-        msg: "Hello from Ansible!"

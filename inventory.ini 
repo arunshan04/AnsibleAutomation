@@ -1,2 +1,0 @@
-[rhel9]
-hostzero ansible_host=192.168.249.142 ansible_user=root
