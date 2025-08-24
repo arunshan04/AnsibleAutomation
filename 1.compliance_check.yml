@@ -50,11 +50,30 @@
       loop_control:
         label: "{{ item.name }}"
       tags: checkFsPartition
+    # ==== PACKAGE MANAGEMENT CHECKS ====
+
+    - name: Check package management {{ item.name }}
+      include_tasks: tasks/check_package_management.yml
+      loop: "{{ cis_csv.list }}"
+      when: item.type == 'packageManagement'
+      loop_control:
+        label: "{{ item }}"
+      tags: packageManagement
+    # Selinux Checks
+
+    - name: Check SELinux {{ item.name }}
+      include_tasks: tasks/check_selinux.yml
+      loop: "{{ cis_csv.list }}"
+      when: item.type == 'selinux'
+      loop_control:
+        label: "{{ item.name }}"
+      tags: selinux
 
     - name: Save compliance results
       ansible.builtin.copy:
         dest: "{{ compliance_output }}"
         content: "{{ cis_results | to_nice_json }}"
+      tags: always
 
     - name: Show Passed Fix for each host
       debug:

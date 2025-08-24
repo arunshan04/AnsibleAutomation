@@ -1,0 +1,34 @@
+- name: Check the Software is Installed {{ item.target }}
+  block:
+
+  - name: Execute Shell Command for {{ item.cis_subsection }} - {{ item.name }}
+    ansible.builtin.shell: "{{ item.required }}"
+    register: shellOutput_check
+    changed_when: false
+    failed_when: false
+
+  - name: Debug
+    debug:
+      var: shellOutput_check
+
+  - name: Set compliance result
+    set_fact:
+      fs_result: "{{ 'PASS' if shellOutput_check.rc == 0 else 'FAIL' }}"
+
+  - name: Save compliance result for {{ item.name }}
+    set_fact:
+      cis_results: >-
+        {{
+          cis_results | combine({
+            item.name: {
+              'cis_subsection': item.cis_subsection,
+              'result': fs_result,
+              'cis_section': item.cis_section,
+              'name': item.name
+            }
+          })
+        }}
+      passed_ids: "{{ passed_ids + [item.cis_subsection] if fs_result == 'PASS' else passed_ids }}"
+      failed_ids: "{{ failed_ids + [item.cis_subsection] if fs_result == 'FAIL' else failed_ids }}"
+
+  tags: always

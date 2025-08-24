@@ -1,0 +1,43 @@
+- name: Check package or file config for {{ item.name }}
+  ansible.builtin.shell: |
+    if [[ "{{ item.target }}" =~ ^(mcstrans|setroubleshoot|selinux-policy.*)$ ]]; then
+      rpm -q {{ item.target }}
+    elif [[ "{{ item.target }}" == "ps -eZ | grep unconfined_service_t" ]]; then
+      {{ item.target }}
+    else
+      grep -E '{{ item.required_options }}' {{ item.target }}
+    fi
+  register: selinux_check
+  args:
+    executable: /bin/bash
+  changed_when: false
+  failed_when: false
+  loop: "{{ cis_controls }}"
+  when: item.type == 'selinux' and (item.ignore_check | default('') != 'true')
+
+- name: Set compliance result for SELinux checks
+  set_fact:
+    fs_result: >-
+      {{
+        'PASS' if item.rc == 0 else 'FAIL'
+      }}
+  loop: "{{ selinux_check.results | default([]) }}"
+  when: not item.skipped | default(false)
+  register: selinux_results
+
+- name: Save SELinux compliance results
+  set_fact:
+    cis_results: >-
+      {{
+        cis_results | combine({
+          item.item.name: {
+            'result': ('PASS' if item.rc == 0 else 'FAIL'),
+            'cis_subsection': item.item.cis_subsection,
+            'output': item.stdout
+          }
+        })
+      }}
+    passed_ids: "{{ passed_ids + [item.item.cis_subsection] if item.rc == 0 else passed_ids }}"
+    failed_ids: "{{ failed_ids + [item.item.cis_subsection] if item.rc != 0 else failed_ids }}"
+  loop: "{{ selinux_check.results | default([]) }}"
+  when: not item.skipped | default(false)

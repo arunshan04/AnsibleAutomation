@@ -86,6 +86,14 @@
         label: "{{ item.name }}"
       tags: checkFsPartition
 
+    - name: Remediate failed package management configurations
+      include_tasks: tasks/fix_package_management.yml
+      loop: "{{ cis_controls.list }}"
+      when: item.type == 'packageManagement' and (compliance_data[item.name].result is defined and compliance_data[item.name].result == 'FAIL')
+      loop_control:
+        label: "{{ item.name }}"
+      tags: packageManagement
+
     - name: Show Passed Fixes
       debug:
         msg: "✅ {{ inventory_hostname }} Remediation Passed: {{ passed_ids | default([]) }}"

@@ -1,0 +1,103 @@
+---
+- name: Checking Redhat 9 Compliance status
+  hosts: all
+  become: true
+  vars:
+    cis_controls: "{{ playbook_dir }}/cis_controls.csv"
+    compliance_output: "/tmp/cis_compliance_check_results.json"
+    passed_ids: []
+    failed_ids: []
+  tasks:
+  - name: Copy the Lookup File to Remote Server
+    ansible.builtin.copy:
+      src: "{{ cis_controls }}"
+      dest: "/tmp/cis_controls.csv"
+    tags: always
+
+  - name: Load the CSV File
+    community.general.read_csv:
+      path: "/tmp/cis_controls.csv"
+    register: cis_csv
+    tags: always
+
+  - name: Filter cis_csv.li st by tag
+    set_fact:
+      filtered_controls: "{{ cis_csv.list | selectattr('cis_section', 'equalto', filter_tag) | list }}"
+    when: filter_tag is defined
+    tags: always
+
+  - name: Check if compliance results file exists
+    ansible.builtin.stat:
+      path: "{{ compliance_output }}"
+    register: compliance_file
+    tags: always
+
+  - name: Load compliance results
+    ansible.builtin.slurp:
+      src: "{{ compliance_output }}"
+    register: raw_json
+    when: compliance_file.stat.exists
+    tags:
+    - always
+    - fix
+
+  - name: Decode compliance JSON
+    set_fact:
+      compliance_data: "{{ raw_json.content | b64decode | from_json }}"
+    when: compliance_file.stat.exists
+    tags: always
+
+  - name: Initialize compliance result store
+    set_fact:
+      cis_results: {}
+      passed_ids: []
+      failed_ids: []
+    tags: always
+
+  - name: Loop the CIS Controls for Check
+    include_tasks: "tasks/check_{{ item.function }}.yml"
+    loop: "{{ filtered_controls if filter_tag is defined else cis_csv.list }}"
+    tags: compliance
+
+  - name: Save compliance results
+    ansible.builtin.copy:
+      dest: "{{ compliance_output }}"
+      content: "{{ cis_results | to_nice_json }}"
+    tags: compliance
+
+  - name: Compliance Results Passed
+    debug:
+      msg: "✅ {{ inventory_hostname }} Passed: {{ passed_ids | default([]) }}"
+    tags: compliance
+
+  - name: Compliance Results Failed
+    debug:
+      msg: "❌ {{ inventory_hostname }} Failed: {{ failed_ids | default([]) }}"
+    tags: compliance
+
+  - name: Decode compliance JSON
+    set_fact:
+      compliance_data: "{{ raw_json.content | b64decode | from_json }}"
+      passed_ids: []
+      failed_ids: []
+    tags: fix
+
+  - name: Loop the CIS Controls for Fix
+    include_tasks: "tasks/fix_{{ item.function }}.yml"
+    loop: "{{ filtered_controls if filter_tag is defined else cis_csv.list }}"
+    tags:
+    - fix
+    when:
+    - compliance_file.stat.exists
+    - item.name in compliance_data
+    - compliance_data[item.name].result == 'FAIL'
+    - item.ignore_fix | default('') != 'true'
+
+  - name: Fix Result Passed
+    debug:
+      msg: "✅ {{ inventory_hostname }} Passed: {{ passed_ids | default([]) }}"
+    tags: fix
+  - name: Fix Result Failed
+    debug:
+      msg: "❌ {{ inventory_hostname }} Failed: {{ failed_ids | default([]) }}"
+    tags: fix

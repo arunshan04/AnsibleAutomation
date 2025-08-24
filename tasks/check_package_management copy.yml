@@ -1,0 +1,71 @@
+- name: Check for package management configuration
+  block:
+
+    - name: Debug what item looks like
+      debug:
+        var: item
+
+    - name: Check if GPG keys are configured per target
+      ansible.builtin.shell: |
+        set -uo pipefail
+        IFS=',' read -r -a CMDS <<< "{{ item.target }}"
+        rc=0
+
+        for raw in "${CMDS[@]}"; do
+          cmd="$(echo "$raw" | xargs)"   # trim
+
+          if [[ "$cmd" == find* ]]; then
+            # Ensure proper quoting in item.targets, e.g. -name '*.repo'
+            while IFS= read -r -d '' f; do
+              if ! grep -Eq '^\s*gpgcheck\s*=\s*1\s*$' "$f"; then
+                echo "$f"
+                rc=1
+              fi
+            done < <($cmd -print0 2>/dev/null)
+          else
+            # Single file path
+            if [[ -f "$cmd" ]]; then
+              if ! grep -Eq '^\s*gpgcheck\s*=\s*1\s*$' "$cmd"; then
+                echo "$cmd"
+                rc=1
+              fi
+            fi
+          fi
+        done
+
+        exit $rc
+      register: gpg_checks              # ✅ You registered gpg_checks
+      changed_when: false
+      failed_when: false
+
+    - name: debug
+      ansible.builtin.debug:
+        msg: "GPG keys configuration check: {{ gpg_checks }}"
+
+    - name: Set compliance status for {{ item.name }}
+      set_fact:
+        fs_result: >-
+          {{
+            'PASS' if
+               ( gpg_checks.stdout | default([]) | length == 0  )  
+            else 'FAIL'
+          }}
+
+    - name: Save compliance result for {{ item.name }}
+      set_fact:
+        cis_results: >-
+          {{
+            cis_results | combine({
+              item.name: {
+                'result': fs_result,
+                'cis_subsection': item.cis_subsection,
+                'severity': item.severity,
+                'files': gpg_checks.stdout | default([]) | split('\n')
+              }
+            })
+          }}
+        passed_ids: "{{ passed_ids + [item.cis_subsection] if fs_result == 'PASS' else passed_ids }}"
+        failed_ids: "{{ failed_ids + [item.cis_subsection] if fs_result == 'FAIL' else failed_ids }}"
+  tags: packageManagement
+
+    

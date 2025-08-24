@@ -1,17 +1,30 @@
-cis_subsection,severity,type,name,target,required_options
-1.1.1.1,high,checkKernalModule,Ensure cramfs kernel module is not available,cramfs
-1.1.1.2,high,checkKernalModule,Ensure freevxfs kernel module is not available,freevxfs
-1.1.1.3,high,checkKernalModule,Ensure hfs kernel module is not available,hfs
-1.1.1.4,high,checkKernalModule,Ensure hfsplus kernel module is not available,hfsplus
-1.1.1.5,high,checkKernalModule,Ensure jffs2 kernel module is not available,jffs2
-1.1.1.6,high,checkKernalModule,Ensure squashfs kernel module is not available,squashfs
-1.1.1.7,high,checkKernalModule,Ensure udf kernel module is not available,udf
-1.1.1.8,high,checkKernalModule,Ensure usb-storage kernel module is not available,usb_storage
+cis_subsection,severity,type,name,target,required_options,target_value,select_value,ignore_fix
+1.1.1.1,high,checkKernalModule,Ensure cramfs kernel module is not available,cramfs,,,,,
+1.1.1.2,high,checkKernalModule,Ensure freevxfs kernel module is not available,freevxfs,,,,,
+1.1.1.3,high,checkKernalModule,Ensure hfs kernel module is not available,hfs,,,,,
+1.1.1.4,high,checkKernalModule,Ensure hfsplus kernel module is not available,hfsplus,,,,,
+1.1.1.5,high,checkKernalModule,Ensure jffs2 kernel module is not available,jffs2,,,,,
+1.1.1.6,high,checkKernalModule,Ensure squashfs kernel module is not available,squashfs,,,,,
+1.1.1.7,high,checkKernalModule,Ensure udf kernel module is not available,udf,,,,,
+1.1.1.8,high,checkKernalModule,Ensure usb-storage kernel module is not available,usb_storage,,,,,
 1.1.1.9,manual,checkKernalModule,Ensure unused filesystems kernel modules are not available,"cramfs,freevxfs,jffs2,hfs,hfsplus,squashfs"
-1.1.2.1,high,checkFsPartition,Ensure /tmp is configured,/tmp,"nodev,nosuid,noexec"
-1.1.2.2,high,checkFsPartition,Ensure /dev/shm is configured,/var,"nodev,nosuid,noexec"
-1.1.2.3,high,checkFsPartition,Ensure /home is configured,/home,"nodev,nosuid"
-1.1.2.4,high,checkFsPartition,Ensure /var is configured,/var,"nodev,nosuid"
-1.1.2.5,high,checkFsPartition,Ensure /var/tmp is configured,/var/tmp,"nodev,nosuid,noexec"
-1.1.2.6,high,checkFsPartition,Ensure /var/log is configured,/var/log,"nodev,nosuid,noexec"
-1.1.2.7,high,checkFsPartition,Ensure /var/log/audit is configured,/var/log/audit,"nodev,nosuid,noexec"
+1.1.2.1,high,checkFsPartition,Ensure /tmp is configured,/tmp,"nodev,nosuid,noexec",,
+1.1.2.2,high,checkFsPartition,Ensure /dev/shm is configured,/var,"nodev,nosuid,noexec",,
+1.1.2.3,high,checkFsPartition,Ensure /home is configured,/home,"nodev,nosuid",,
+1.1.2.4,high,checkFsPartition,Ensure /var is configured,/var,"nodev,nosuid",,
+1.1.2.5,high,checkFsPartition,Ensure /var/tmp is configured,/var/tmp,"nodev,nosuid,noexec",,
+1.1.2.6,high,checkFsPartition,Ensure /var/log is configured,/var/log,"nodev,nosuid,noexec",,
+1.1.2.7,high,checkFsPartition,Ensure /var/log/audit is configured,/var/log/audit,"nodev,nosuid,noexec",,
+1.2.1.1,,packageManagement,Ensure GPG keys are configured,"/etc/yum.repos.d/*.repo /etc/dnf/dnf.conf",'^\s*gpgcheck\s*=\s*1\s*$',gpgcheck=1,^gpgcheck*=
+1.2.1.2,,packageManagement,Ensure gpgcheck is globally activated (Automated),"/etc/dnf/dnf.conf",'^\s*gpgcheck\s*=\s*1\s*$',gpgcheck=1,^gpgcheck*=
+1.2.1.3,,packageManagement,Ensure repo_gpgcheck is globally activated,"/etc/dnf/dnf.conf",'^\s*repo_gpgcheck\s*=\s*1\s*$',repo_gpgcheck=1,^repo_gpgcheck*=,true
+1.2.1.4,,packageManagement,Ensure package manager repositories are configured (Manual),"/etc/yum.repos.d/*.repo",'^\s*baseurl|^\s*mirrorlist',
+1.2.2.1,,packageManagement,"Ensure updates, patches, and security software are installed (Manual)","dnf check-update --security",,"dnf update -y",,
+1.3.1.1,,selinux,Ensure SELinux is installed,selinux-policy-targeted,"",dnf install -y selinux-policy-targeted
+1.3.1.2,,selinux,Ensure SELinux is not disabled in bootloader,/etc/default/grub,"selinux=0|enforcing=0",grubby --update-kernel=ALL --remove-args="selinux=0 enforcing=0"
+1.3.1.3,,selinux,Ensure SELinux policy is configured,/etc/selinux/config,"^SELINUXTYPE=targeted",SELINUXTYPE=targeted
+1.3.1.4,,selinux,Ensure SELinux mode is not disabled,/etc/selinux/config,"^SELINUX=(enforcing|permissive)",SELINUX=enforcing
+1.3.1.5,,selinux,Ensure SELinux mode is enforcing,/etc/selinux/config,"^SELINUX=enforcing",SELINUX=enforcing
+1.3.1.6,,selinux,Ensure no unconfined services exist,ps -eZ | grep unconfined_service_t,"",Manual check only
+1.3.1.7,,selinux,Ensure mcstrans is not installed,mcstrans,"",dnf remove -y mcstrans
+1.3.1.8,,selinux,Ensure setroubleshoot is not installed,setroubleshoot,"",dnf remove -y setroubleshoot

@@ -1,0 +1,72 @@
+- name: Check for package management configuration
+  block:
+
+    - name: Debug what item looks like
+      debug:
+        var: item
+
+    - name: Check if GPG keys are configured per {{ item.cis_subsection }} - {{ item.name }}
+      ansible.builtin.shell: |
+        rc=0; files=()
+        for f in $(ls {{item.target}} ); do
+          [[ -f "$f" ]] && grep -Eq {{ item.required_options}} "$f" \
+          || { files+=("$f"); rc=1; }
+        done
+        printf '%s\n' "${files[@]}"
+        exit $rc
+      register: gpg_checks              # ✅ You registered gpg_checks
+      args:
+        executable: /bin/bash
+      changed_when: false
+      failed_when: false
+      when: item.cis_subsection in ['1.2.1.1', '1.2.1.2', '1.2.1.3','1.2.1.4']
+
+    - name: check if updates, patches, and security software are installed
+      ansible.builtin.shell: |
+        {{ item.target }}
+      register: pkgcheck              # ✅ You registered pkgcheck
+      changed_when: false
+      failed_when: false
+      when: item.cis_subsection == '1.2.2.1'
+
+    # After setting pkgcheck from gpgcheck_raw or pkgcheck_raw
+    - name: Move pkgcheck → gpgcheck if it has stdout_lines
+      set_fact:
+        gpg_checks: "{{ pkgcheck }}"
+      when:
+        - pkgcheck is defined
+        - pkgcheck.stdout_lines is defined
+        - pkgcheck.stdout_lines | length > 0
+
+    - name: debug
+      ansible.builtin.debug:
+        msg: "GPG keys configuration check: {{ gpg_checks }}"
+
+
+    - name: Set compliance status for {{ item.cis_subsection }} - {{ item.name }}
+      set_fact:
+        fs_result: >-
+          {{
+            'PASS' if
+               ( gpg_checks.stdout | default([]) | length == 0  )  
+            else 'FAIL'
+          }}
+
+    - name: Save compliance result for {{ item.name }}
+      set_fact:
+        cis_results: >-
+          {{
+            cis_results | combine({
+              item.name: {
+                'result': fs_result,
+                'cis_subsection': item.cis_subsection,
+                'severity': item.severity,
+                'files': gpg_checks.stdout | default([]) | split('\n')
+              }
+            })
+          }}
+        passed_ids: "{{ passed_ids + [item.cis_subsection] if fs_result == 'PASS' else passed_ids }}"
+        failed_ids: "{{ failed_ids + [item.cis_subsection] if fs_result == 'FAIL' else failed_ids }}"
+  tags: packageManagement
+
+    

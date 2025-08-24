@@ -1,0 +1,35 @@
+- name: Remediate Package Management configuration
+  block:
+    # - name: Init accumulator
+    #   debug:
+    #     var: compliance_data[item.name]
+
+    # - name: Init accumulator
+    #   debug:
+    #     var: item
+
+    - name: Ensure gpgcheck=1 in failing repo files
+      lineinfile:
+        path: "{{ repo_file }}"
+        regexp: '(?im)^\s*gpgcheck\s*=\s*0\s*$'
+        line: "{{ item.target_value }}"
+        backup: yes
+      when: compliance_data[item.name].result == 'FAIL'
+      loop: "{{ compliance_data[item.name].files }}"
+      register: repo_file_result
+      loop_control:
+        loop_var: repo_file
+        label: "{{ repo_file }}"
+
+    - name: debug
+      ansible.builtin.debug:
+        msg: "Remediation result for {{ item.name }} ({{ item.cis_subsection }}): {{ repo_file_result }}"
+        
+    - name: Record remediation result for {{ item.name }}
+      set_fact:
+        passed_ids: "{{ passed_ids + [item.cis_subsection] if not (repo_file_result is failed) else passed_ids }}"
+        failed_ids: "{{ failed_ids + [item.cis_subsection] if (repo_file_result is failed) else failed_ids }}"
+
+
+  tags:
+    - packageManagement

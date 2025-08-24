@@ -1,0 +1,46 @@
+- name: Check for package management configuration
+  block:
+    - name: Check if {{ item.required_options }} for GPG keys
+      ansible.builtin.command: "grep  -E '{{ item.required_options }}' /etc/yum.conf"
+      register: yum_result
+      changed_when: false
+      failed_when: false
+
+    - name: Check if GPG keys are configured for gpg repos
+      ansible.builtin.shell: | 
+        for i in $(find /etc/yum.repos.d/*.repo); do
+          grep -q -E '^\s*gpgcheck\s*=\s*1\s*$' "$i" || echo "$i";
+        done
+      register: gpg_result
+      changed_when: false
+      failed_when: false
+
+    - name: debug
+      ansible.builtin.debug:
+        msg: "GPG keys configuration check: {{ gpg_result.stdout }}"
+
+    - name: Set compliance status for {{ item.name }}
+      set_fact:
+        fs_result: >-
+          {{
+            'PASS' if
+              yum_result.rc == 0 and ( gpg_result.stdout | default([]) | length == 0  )
+            else 'FAIL'
+          }}
+
+    - name: Save compliance result for {{ item.name }}
+      set_fact:
+        cis_results: >-
+          {{
+            cis_results | combine({
+              item.name: {
+                'result': fs_result,
+                'cis_subsection': item.cis_subsection,
+                'severity': item.severity
+              }
+            })
+          }}
+        passed_ids: "{{ passed_ids + [item.cis_subsection] if fs_result == 'PASS' else passed_ids }}"
+        failed_ids: "{{ failed_ids + [item.cis_subsection] if fs_result == 'FAIL' else failed_ids }}"
+  tags: 
+    - packageManagement
