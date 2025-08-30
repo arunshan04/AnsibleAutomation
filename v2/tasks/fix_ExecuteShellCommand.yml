@@ -1,9 +1,16 @@
+- name: "Check if file exists for backup - {{ item.cis_subsection }} - {{ item.name }}"
+  ansible.builtin.stat:
+    path: "{{ item.select }}"
+  register: backup_file_stat
+  when: item.select is defined and item.select != ''
+  tags: always
+
 - name: "Backup file before fix for {{ item.cis_subsection }} - {{ item.name }}"
   ansible.builtin.copy:
     src: "{{ item.select }}"
-    dest: "{{ item.select }}.backup.{{ ansible_date_time.epoch }}"
+    dest: "{{ item.select }}.backup.{{item.cis_subsection}}_{{ ansible_date_time.epoch }}"
     remote_src: yes
-  when: item.select is defined and item.select != ''
+  when: item.select is defined and item.select != '' and backup_file_stat.stat.exists
   tags: always
 
 - name: "Execute Fix Command for {{ item.cis_subsection }} - {{ item.name }}"
